@@ -132,6 +132,7 @@ impl View {
                     &config.docker.path,
                     &config.display.separator,
                     config.display.abbr_sid,
+                    config.display.abbr_path,
                     &config.display.tree_symbols,
                 );
                 if column.available() {

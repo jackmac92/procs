@@ -257,12 +257,13 @@ pub fn gen_column(
     _docker_path: &str,
     separator: &str,
     abbr_sid: bool,
+    abbr_path: bool,
     tree_symbols: &[String; 5],
 ) -> Box<dyn Column> {
     match kind {
         ConfigColumnKind::Ccgroup => Box::new(Ccgroup::new(header)),
         ConfigColumnKind::Cgroup => Box::new(Cgroup::new(header)),
-        ConfigColumnKind::Command => Box::new(Command::new(header)),
+        ConfigColumnKind::Command => Box::new(Command::new(header, abbr_path)),
         ConfigColumnKind::ContextSw => Box::new(ContextSw::new(header)),
         ConfigColumnKind::CpuTime => Box::new(CpuTime::new(header)),
         #[cfg(feature = "docker")]

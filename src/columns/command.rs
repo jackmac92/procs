@@ -1,4 +1,5 @@
 use crate::process::ProcessInfo;
+use crate::util::format_command;
 use crate::{column_default, Column};
 use std::cmp;
 use std::collections::HashMap;
@@ -9,10 +10,11 @@ pub struct Command {
     fmt_contents: HashMap<i32, String>,
     raw_contents: HashMap<i32, String>,
     width: usize,
+    abbr_path: bool,
 }
 
 impl Command {
-    pub fn new(header: Option<String>) -> Self {
+    pub fn new(header: Option<String>, abbr_path: bool) -> Self {
         let header = header.unwrap_or_else(|| String::from("Command"));
         let unit = String::new();
         Self {
@@ -21,6 +23,7 @@ impl Command {
             width: 0,
             header,
             unit,
+            abbr_path,
         }
     }
 }
@@ -28,7 +31,7 @@ impl Command {
 #[cfg(any(target_os = "linux", target_os = "android"))]
 impl Column for Command {
     fn add(&mut self, proc: &ProcessInfo) {
-        let fmt_content = if let Ok(cmd) = &proc.curr_proc.cmdline() {
+        let base_content = if let Ok(cmd) = &proc.curr_proc.cmdline() {
             if !cmd.is_empty() {
                 let mut cmd = cmd
                     .iter()
@@ -47,7 +50,8 @@ impl Column for Command {
         } else {
             proc.curr_proc.stat().comm.clone()
         };
-        let raw_content = fmt_content.clone();
+        let raw_content = base_content.clone();
+        let fmt_content = format_command(base_content, self.abbr_path);
 
         self.fmt_contents.insert(proc.pid, fmt_content);
         self.raw_contents.insert(proc.pid, raw_content);

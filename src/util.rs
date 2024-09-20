@@ -5,8 +5,10 @@ use crate::Opt;
 use byte_unit::{Byte, UnitType};
 use clap::ValueEnum;
 use std::borrow::Cow;
+use std::env;
 use std::io;
 use std::io::IsTerminal;
+use std::path::Path;
 use std::time::Duration;
 use std::time::Instant;
 use unicode_width::{UnicodeWidthChar, UnicodeWidthStr};
@@ -284,6 +286,79 @@ pub fn format_sid(sid: &[u64], abbr: bool) -> String {
     }
 
     ret
+}
+
+fn truncate_home_path(input: String) -> String {
+    let path = Path::new(&input);
+
+    // Get the current user's home directory
+    if let Ok(home_dir) = env::var("HOME") {
+        let home_path = Path::new(&home_dir);
+
+        // Check if the input path starts with the home directory
+        if let Ok(relative_path) = path.strip_prefix(home_path) {
+            // Construct the truncated path
+            return format!("~/{}", relative_path.display());
+        }
+    }
+
+    // If it's not a path under the home directory or we couldn't get the home directory,
+    // return the input unchanged
+    input
+}
+
+fn truncate_nix_store_path(input: String) -> String {
+    let path = Path::new(&input);
+
+    // Check if the path starts with "/nix/store/"
+    if let Ok(nix_store) = path.strip_prefix("/nix/store/") {
+        // Split the remaining path into components
+        let components: Vec<_> = nix_store.components().collect();
+
+        // If there are at least two components (hash and filename)
+        if components.len() >= 2 {
+            // let hash = components[0].as_os_str().to_str().unwrap_or("");
+            let filename = components
+                .last()
+                .unwrap()
+                .as_os_str()
+                .to_str()
+                .unwrap_or("");
+            let innerres = if let Some(last_part) = filename.rsplit_once("-") {
+                let cmd = last_part.1.split_whitespace().next().unwrap_or(last_part.1);
+                format!("{}{}", last_part.0, cmd)
+            } else {
+                format!("{}", filename)
+            };
+            if let Some(last_part) = innerres.rsplit_once("/bin/") {
+                let cmd = last_part.1.split_whitespace().next().unwrap_or(last_part.1);
+                format!("{}{}", last_part.0, cmd)
+            } else {
+                // Construct the truncated path
+                format!("/nix/store/...{}", filename)
+            }
+        } else {
+            // If the path doesn't have enough components, return it unchanged
+            input
+        }
+    } else {
+        // If it's not a /nix/store path, return it unchanged
+        input
+    }
+}
+
+fn truncate_command_path(input: String) -> String {
+    let mut ret = truncate_nix_store_path(input);
+    ret = truncate_home_path(ret);
+    ret
+}
+
+pub fn format_command(cmd: String, abbr: bool) -> String {
+    if abbr {
+        truncate_command_path(cmd)
+    } else {
+        cmd
+    }
 }
 
 pub fn bytify(x: u64) -> String {
